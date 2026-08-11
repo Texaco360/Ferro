@@ -1,0 +1,24 @@
+# Build artifacts
+/build/
+*.ppu
+*.o
+*.or
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Local environment / IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Test and temp files
+*.log
+*.tmp
+*.bak
+*.swp
+
+# Boss dependency cache / generated files
+.boss/
+modules/

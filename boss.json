@@ -1,0 +1,12 @@
+{
+	"name": "FerroServer",
+	"description": "Test Horse",
+	"version": "1.0.0",
+	"homepage": "",
+	"mainsrc": "./src",
+	"browsingpath": "",
+	"projects": [],
+	"dependencies": {
+		"github.com/hashload/horse": "^3.3.2"
+	}
+}
