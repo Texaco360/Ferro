@@ -9,8 +9,7 @@ uses
   SysUtils,
   fpcunit,
   testregistry,
-  SQLite3Conn,
-  SQLDB,
+  migrations,
   fpjson,
   todo_repository;
 
@@ -20,7 +19,6 @@ type
     FDatabasePath: string;
     function ResolveDatabasePath: string;
     procedure EnsureFreshDatabase;
-    procedure ExecuteSchema;
     function CreateRepository: TTodoRepository;
   protected
     procedure SetUp; override;
@@ -62,44 +60,7 @@ begin
   if FileExists(FDatabasePath) then
     DeleteFile(FDatabasePath);
 
-  ExecuteSchema;
-end;
-
-procedure TTestTodoRepository.ExecuteSchema;
-var
-  Connection: TSQLite3Connection;
-  Query: TSQLQuery;
-  SchemaFile: TStringList;
-  Transaction: TSQLTransaction;
-  SchemaPath: string;
-begin
-  Connection := TSQLite3Connection.Create(nil);
-  Transaction := TSQLTransaction.Create(Connection);
-  Query := TSQLQuery.Create(nil);
-  SchemaFile := TStringList.Create;
-  try
-    Connection.Transaction := Transaction;
-    Connection.DatabaseName := FDatabasePath;
-    Connection.Open;
-
-    SchemaPath := ExpandFileName(
-      IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
-      '../../../src/database/schema.sql'
-    );
-    SchemaFile.LoadFromFile(SchemaPath);
-
-    Query.DataBase := Connection;
-    Query.Transaction := Transaction;
-    Query.SQL.Text := SchemaFile.Text;
-
-    Transaction.StartTransaction;
-    Query.ExecSQL;
-    Transaction.Commit;
-  finally
-    SchemaFile.Free;
-    Query.Free;
-    Connection.Free;
-  end;
+  RunMigrations;
 end;
 
 function TTestTodoRepository.CreateRepository: TTodoRepository;

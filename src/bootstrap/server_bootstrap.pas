@@ -14,7 +14,9 @@ uses
   Sockets,
   SysUtils,
   Horse,
-  todo_controller;
+  migrations,
+  todo_controller,
+  project_controller; // $USES_END
 
 function IsPortAvailable(const APort: Word): Boolean;
 var
@@ -73,9 +75,15 @@ procedure RegisterRoutes;
 begin
   THorse.Get('/api/todos', GetTodos);
   THorse.Get('/api/todos/:id', GetTodoById);
-    THorse.Post('/api/todos', CreateTodo);
-    THorse.Put('/api/todos/:id', UpdateTodo);
-    THorse.Delete('/api/todos/:id', DeleteTodo);
+  THorse.Post('/api/todos', CreateTodo);
+  THorse.Put('/api/todos/:id', UpdateTodo);
+  THorse.Delete('/api/todos/:id', DeleteTodo);
+  THorse.Get('/api/projects', GetProjects);
+  THorse.Get('/api/projects/:id', GetProjectById);
+  THorse.Post('/api/projects', CreateProject);
+  THorse.Put('/api/projects/:id', UpdateProject);
+  THorse.Delete('/api/projects/:id', DeleteProject);
+  // $ROUTES_END
 end;
 
 procedure StartServer;
@@ -89,6 +97,7 @@ begin
   if Port <> RequestedPort then
     Writeln(Format('Port %d is busy, using %d.', [RequestedPort, Port]));
 
+  RunMigrations;
   RegisterRoutes;
   THorse.Listen(Port);
 end;
