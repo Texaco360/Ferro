@@ -7,10 +7,11 @@ interface
 uses
   Classes,
   SysUtils,
-  fpjson;
+  fpjson,
+  repository;
 
 type
-  TTodoRepository = class
+  TTodoRepository = class(TRepositoryBase)
   public
 
     function GetAll: TJSONArray;
@@ -38,9 +39,8 @@ type
 implementation
 
 uses
-  SQLite3Conn,
   SQLDB,
-  db_connection;
+  SQLite3Conn;
 
 function TTodoRepository.GetAll: TJSONArray;
 var
@@ -50,14 +50,9 @@ var
 begin
   Result := TJSONArray.Create;
 
-  Conn := CreateConnection;
-  Query := TSQLQuery.Create(nil);
+  Query := CreateQuery(Conn);
 
   try
-
-    Query.DataBase := Conn;
-    Query.Transaction := Conn.Transaction;
-
     Query.SQL.Text :=
       'select id,title,completed ' +
       'from todos ' +
@@ -105,14 +100,9 @@ var
 begin
   Result := nil;
 
-  Conn := CreateConnection;
-  Query := TSQLQuery.Create(nil);
+  Query := CreateQuery(Conn);
 
   try
-
-    Query.DataBase := Conn;
-    Query.Transaction := Conn.Transaction;
-
     Query.SQL.Text :=
       'select id,title,completed ' +
       'from todos ' +
@@ -159,15 +149,10 @@ var
 begin
   Result := 0;
 
-  Conn := CreateConnection;
-  Query := TSQLQuery.Create(nil);
+  Query := CreateQuery(Conn);
 
   try
-
-    Query.DataBase := Conn;
-    Query.Transaction := Conn.Transaction;
-
-    Conn.Transaction.StartTransaction;
+    BeginTransaction(Conn);
 
     Query.SQL.Text :=
       'insert into todos ' +
@@ -179,8 +164,7 @@ begin
     ).AsString := ATitle;
 
     Query.ExecSQL;
-
-    Conn.Transaction.Commit;
+    CommitTransaction(Conn);
 
     Query.SQL.Text :=
       'select last_insert_rowid() as id';
@@ -191,6 +175,9 @@ begin
       Query.FieldByName('id').AsInteger;
 
   finally
+    if Conn.Transaction.Active then
+      RollbackTransaction(Conn);
+
     Query.Free;
     Conn.Free;
   end;
@@ -206,15 +193,10 @@ var
   Query: TSQLQuery;
 begin
 
-  Conn := CreateConnection;
-  Query := TSQLQuery.Create(nil);
+  Query := CreateQuery(Conn);
 
   try
-
-    Query.DataBase := Conn;
-    Query.Transaction := Conn.Transaction;
-
-    Conn.Transaction.StartTransaction;
+    BeginTransaction(Conn);
 
     Query.SQL.Text :=
       'update todos ' +
@@ -232,10 +214,12 @@ begin
       AId;
 
     Query.ExecSQL;
-
-    Conn.Transaction.Commit;
+    CommitTransaction(Conn);
 
   finally
+    if Conn.Transaction.Active then
+      RollbackTransaction(Conn);
+
     Query.Free;
     Conn.Free;
   end;
@@ -249,15 +233,10 @@ var
   Query: TSQLQuery;
 begin
 
-  Conn := CreateConnection;
-  Query := TSQLQuery.Create(nil);
+  Query := CreateQuery(Conn);
 
   try
-
-    Query.DataBase := Conn;
-    Query.Transaction := Conn.Transaction;
-
-    Conn.Transaction.StartTransaction;
+    BeginTransaction(Conn);
 
     Query.SQL.Text :=
       'delete from todos ' +
@@ -267,10 +246,12 @@ begin
       AId;
 
     Query.ExecSQL;
-
-    Conn.Transaction.Commit;
+    CommitTransaction(Conn);
 
   finally
+    if Conn.Transaction.Active then
+      RollbackTransaction(Conn);
+
     Query.Free;
     Conn.Free;
   end;

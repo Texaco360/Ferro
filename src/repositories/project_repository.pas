@@ -7,10 +7,11 @@ interface
 uses
   Classes,
   SysUtils,
-  fpjson;
+  fpjson,
+  repository;
 
 type
-  TProjectRepository = class
+  TProjectRepository = class(TRepositoryBase)
   public
 
     function GetAll: TJSONArray;
@@ -37,9 +38,8 @@ type
 implementation
 
 uses
-  SQLite3Conn,
   SQLDB,
-  db_connection;
+  SQLite3Conn;
 
 function TProjectRepository.GetAll: TJSONArray;
 var
@@ -49,13 +49,9 @@ var
 begin
   Result := TJSONArray.Create;
 
-  Conn := CreateConnection;
-  Query := TSQLQuery.Create(nil);
+  Query := CreateQuery(Conn);
 
   try
-    Query.DataBase := Conn;
-    Query.Transaction := Conn.Transaction;
-
     Query.SQL.Text :=
       'select id,name,created_at ' +
       'from projects ' +
@@ -88,13 +84,9 @@ var
 begin
   Result := nil;
 
-  Conn := CreateConnection;
-  Query := TSQLQuery.Create(nil);
+  Query := CreateQuery(Conn);
 
   try
-    Query.DataBase := Conn;
-    Query.Transaction := Conn.Transaction;
-
     Query.SQL.Text :=
       'select id,name,created_at ' +
       'from projects ' +
@@ -127,14 +119,10 @@ var
 begin
   Result := 0;
 
-  Conn := CreateConnection;
-  Query := TSQLQuery.Create(nil);
+  Query := CreateQuery(Conn);
 
   try
-    Query.DataBase := Conn;
-    Query.Transaction := Conn.Transaction;
-
-    Conn.Transaction.StartTransaction;
+    BeginTransaction(Conn);
 
     Query.SQL.Text :=
       'insert into projects (name) values (:name)';
@@ -142,7 +130,7 @@ begin
     Query.ParamByName('name').AsString := AName;
 
     Query.ExecSQL;
-    Conn.Transaction.Commit;
+    CommitTransaction(Conn);
 
     Query.SQL.Text :=
       'select last_insert_rowid() as id';
@@ -150,6 +138,9 @@ begin
     Result := Query.FieldByName('id').AsInteger;
 
   finally
+    if Conn.Transaction.Active then
+      RollbackTransaction(Conn);
+
     Query.Free;
     Conn.Free;
   end;
@@ -163,14 +154,10 @@ var
   Conn: TSQLite3Connection;
   Query: TSQLQuery;
 begin
-  Conn := CreateConnection;
-  Query := TSQLQuery.Create(nil);
+  Query := CreateQuery(Conn);
 
   try
-    Query.DataBase := Conn;
-    Query.Transaction := Conn.Transaction;
-
-    Conn.Transaction.StartTransaction;
+    BeginTransaction(Conn);
 
     Query.SQL.Text :=
       'update projects set name = :name where id = :id';
@@ -179,9 +166,12 @@ begin
     Query.ParamByName('id').AsInteger := AId;
 
     Query.ExecSQL;
-    Conn.Transaction.Commit;
+    CommitTransaction(Conn);
 
   finally
+    if Conn.Transaction.Active then
+      RollbackTransaction(Conn);
+
     Query.Free;
     Conn.Free;
   end;
@@ -194,20 +184,19 @@ var
   Conn: TSQLite3Connection;
   Query: TSQLQuery;
 begin
-  Conn := CreateConnection;
-  Query := TSQLQuery.Create(nil);
+  Query := CreateQuery(Conn);
 
   try
-    Query.DataBase := Conn;
-    Query.Transaction := Conn.Transaction;
-
-    Conn.Transaction.StartTransaction;
+    BeginTransaction(Conn);
     Query.SQL.Text := 'delete from projects where id = :id';
     Query.ParamByName('id').AsInteger := AId;
     Query.ExecSQL;
-    Conn.Transaction.Commit;
+    CommitTransaction(Conn);
 
   finally
+    if Conn.Transaction.Active then
+      RollbackTransaction(Conn);
+
     Query.Free;
     Conn.Free;
   end;
