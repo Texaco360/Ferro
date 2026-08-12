@@ -1,7 +1,6 @@
 program migrate;
 
-{$MODE DELPHI}
-{$H+}
+{$mode objfpc}{$H+}
 
 uses
   {$IFDEF UNIX}

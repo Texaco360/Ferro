@@ -1,6 +1,6 @@
 program generate;
 
-{$MODE DELPHI}
+{$MODE ObjFPC}
 {$H+}
 
 uses
