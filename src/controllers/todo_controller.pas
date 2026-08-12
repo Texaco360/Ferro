@@ -7,139 +7,131 @@ interface
 uses
   Horse,
   SysUtils,
-  fpjson;
+  fpjson,
+  controller,
+  todo_repository;
 
-procedure GetTodos(
-  Req : THorseRequest;
-  Res : THorseResponse);
+type
+  TTodoController = class(TBaseController)
+  private
+    class var FRepository: TTodoRepository;
+    class function Repository: TTodoRepository; static;
 
-procedure GetTodoById(
-  Req : THorseRequest;
-  Res : THorseResponse);
+  public
+    class destructor Destroy;
 
-procedure CreateTodo(
-  Req : THorseRequest;
-  Res : THorseResponse);
+    class procedure GetAll(
+      Req : THorseRequest;
+      Res : THorseResponse); static;
 
-procedure UpdateTodo(
-  Req : THorseRequest;
-  Res : THorseResponse);
+    class procedure GetById(
+      Req : THorseRequest;
+      Res : THorseResponse); static;
 
-procedure DeleteTodo(
-  Req : THorseRequest;
-  Res : THorseResponse);
+    class procedure Create(
+      Req : THorseRequest;
+      Res : THorseResponse); static;
+
+    class procedure Update(
+      Req : THorseRequest;
+      Res : THorseResponse); static;
+
+    class procedure Delete(
+      Req : THorseRequest;
+      Res : THorseResponse); static;
+  end;
 
 implementation
 
-uses
- 
-  todo_repository;
+class function TTodoController.Repository: TTodoRepository;
+begin
+  if FRepository = nil then
+    FRepository := TTodoRepository.Create;
 
-procedure GetTodos(
+  Result := FRepository;
+end;
+
+class destructor TTodoController.Destroy;
+begin
+  FreeAndNil(FRepository);
+end;
+
+class procedure TTodoController.GetAll(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  Repo: TTodoRepository;
   Todos: TJSONArray;
 begin
-  Repo := TTodoRepository.Create;
   Todos := nil;
 
   try
-    Todos := Repo.GetAll;
-
-    Res
-      .ContentType('application/json')
-      .Send(Todos.AsJSON);
+    Todos := Repository.GetAll;
+    SendJSON(Res, Todos);
   finally
     Todos.Free;
-    Repo.Free;
   end;
 end;
 
-procedure GetTodoById(
+class procedure TTodoController.GetById(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  Repo: TTodoRepository;
   TodoId: Integer;
   Todo: TJSONObject;
 begin
-  Repo := TTodoRepository.Create;
   Todo := nil;
-  TodoId := StrToIntDef(Req.Params['id'], 0);
+  TodoId := ParamAsInt(Req, 'id');
   try
-    Todo := Repo.GetById(TodoId);
-
-    Res
-      .ContentType('application/json')
-      .Send(Todo.AsJSON);
+    Todo := Repository.GetById(TodoId);
+    SendJSON(Res, Todo);
   finally
     Todo.Free;
-    Repo.Free;
   end;
 end;
 
-procedure CreateTodo(
+class procedure TTodoController.Create(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  Repo: TTodoRepository;
   Todo: TJSONObject;
   TodoId: Integer;
 begin
-  Repo := TTodoRepository.Create;
   Todo := TJSONObject(GetJSON(Req.Body));
   try
-    TodoId := Repo.CreateTodo(Todo.Strings['title']);
+    TodoId := Repository.CreateTodo(Todo.Strings['title']);
     Todo.Add('id', TodoId);
-    Res
-      .Status(201)
-      .ContentType('application/json')
-      .Send(Todo.AsJSON);
+    SendJSON(Res, Todo, 201);
   finally
     Todo.Free;
-    Repo.Free;
   end;
 end;
 
-procedure UpdateTodo(
+class procedure TTodoController.Update(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  Repo: TTodoRepository;
   TodoId: Integer;
   Todo: TJSONObject;
 begin
-  Repo := TTodoRepository.Create;
   Todo := TJSONObject(GetJSON(Req.Body));
-  TodoId := StrToIntDef(Req.Params['id'], 0);
+  TodoId := ParamAsInt(Req, 'id');
   try
-    Repo.Update(TodoId, Todo.Strings['title'], Todo.Booleans['completed']);
-    Res
-      .ContentType('application/json')
-      .Send(Todo.AsJSON);
+    Repository.Update(TodoId, Todo.Strings['title'], Todo.Booleans['completed']);
+    SendJSON(Res, Todo);
   finally
     Todo.Free;
-    Repo.Free;
   end;
 end;
 
-procedure DeleteTodo(
+class procedure TTodoController.Delete(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  Repo: TTodoRepository;
   TodoId: Integer;
 begin
-  Repo := TTodoRepository.Create;
-  TodoId := StrToIntDef(Req.Params['id'], 0);
-  try
-    Repo.Delete(TodoId);
-    Res.Status(204).Send('');
-  finally
-    Repo.Free;
-  end;
+  TodoId := ParamAsInt(Req, 'id');
+  Repository.Delete(TodoId);
+  SendNoContent(Res);
 end;
 
 end.

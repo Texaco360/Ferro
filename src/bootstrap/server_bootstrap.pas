@@ -73,16 +73,16 @@ end;
 
 procedure RegisterRoutes;
 begin
-  THorse.Get('/api/todos', GetTodos);
-  THorse.Get('/api/todos/:id', GetTodoById);
-  THorse.Post('/api/todos', CreateTodo);
-  THorse.Put('/api/todos/:id', UpdateTodo);
-  THorse.Delete('/api/todos/:id', DeleteTodo);
-  THorse.Get('/api/projects', GetProjects);
-  THorse.Get('/api/projects/:id', GetProjectById);
-  THorse.Post('/api/projects', CreateProject);
-  THorse.Put('/api/projects/:id', UpdateProject);
-  THorse.Delete('/api/projects/:id', DeleteProject);
+  THorse.Get('/api/todos', TTodoController.GetAll);
+  THorse.Get('/api/todos/:id', TTodoController.GetById);
+  THorse.Post('/api/todos', TTodoController.Create);
+  THorse.Put('/api/todos/:id', TTodoController.Update);
+  THorse.Delete('/api/todos/:id', TTodoController.Delete);
+  THorse.Get('/api/projects', TProjectController.GetAll);
+  THorse.Get('/api/projects/:id', TProjectController.GetById);
+  THorse.Post('/api/projects', TProjectController.Create);
+  THorse.Put('/api/projects/:id', TProjectController.Update);
+  THorse.Delete('/api/projects/:id', TProjectController.Delete);
   // $ROUTES_END
 end;
 

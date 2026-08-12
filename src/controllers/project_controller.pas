@@ -7,135 +7,130 @@ interface
 uses
   Horse,
   SysUtils,
-  fpjson;
+  fpjson,
+  controller,
+  project_repository;
 
-procedure GetProjects(
-  Req : THorseRequest;
-  Res : THorseResponse);
+type
+  TProjectController = class(TBaseController)
+  private
+    class var FRepository: TProjectRepository;
+    class function Repository: TProjectRepository; static;
 
-procedure GetProjectById(
-  Req : THorseRequest;
-  Res : THorseResponse);
+  public
+    class destructor Destroy;
 
-procedure CreateProject(
-  Req : THorseRequest;
-  Res : THorseResponse);
+    class procedure GetAll(
+      Req : THorseRequest;
+      Res : THorseResponse); static;
 
-procedure UpdateProject(
-  Req : THorseRequest;
-  Res : THorseResponse);
+    class procedure GetById(
+      Req : THorseRequest;
+      Res : THorseResponse); static;
 
-procedure DeleteProject(
-  Req : THorseRequest;
-  Res : THorseResponse);
+    class procedure Create(
+      Req : THorseRequest;
+      Res : THorseResponse); static;
+
+    class procedure Update(
+      Req : THorseRequest;
+      Res : THorseResponse); static;
+
+    class procedure Delete(
+      Req : THorseRequest;
+      Res : THorseResponse); static;
+  end;
 
 implementation
 
-uses
-  project_repository;
+class function TProjectController.Repository: TProjectRepository;
+begin
+  if FRepository = nil then
+    FRepository := TProjectRepository.Create;
 
-procedure GetProjects(
+  Result := FRepository;
+end;
+
+class destructor TProjectController.Destroy;
+begin
+  FreeAndNil(FRepository);
+end;
+
+class procedure TProjectController.GetAll(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  Repo: TProjectRepository;
   Items: TJSONArray;
 begin
-  Repo := TProjectRepository.Create;
   Items := nil;
   try
-    Items := Repo.GetAll;
-    Res
-      .ContentType('application/json')
-      .Send(Items.AsJSON);
+    Items := Repository.GetAll;
+    SendJSON(Res, Items);
   finally
     Items.Free;
-    Repo.Free;
   end;
 end;
 
-procedure GetProjectById(
+class procedure TProjectController.GetById(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  Repo: TProjectRepository;
   ItemId: Integer;
   Item: TJSONObject;
 begin
-  Repo := TProjectRepository.Create;
   Item := nil;
-  ItemId := StrToIntDef(Req.Params['id'], 0);
+  ItemId := ParamAsInt(Req, 'id');
   try
-    Item := Repo.GetById(ItemId);
-    Res
-      .ContentType('application/json')
-      .Send(Item.AsJSON);
+    Item := Repository.GetById(ItemId);
+    SendJSON(Res, Item);
   finally
     Item.Free;
-    Repo.Free;
   end;
 end;
 
-procedure CreateProject(
+class procedure TProjectController.Create(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  Repo: TProjectRepository;
   Item: TJSONObject;
   ItemId: Integer;
 begin
-  Repo := TProjectRepository.Create;
   Item := TJSONObject(GetJSON(Req.Body));
   try
-    ItemId := Repo.CreateProject(Item.Strings['name']);
+    ItemId := Repository.CreateProject(Item.Strings['name']);
     Item.Add('id', ItemId);
-    Res
-      .Status(201)
-      .ContentType('application/json')
-      .Send(Item.AsJSON);
+    SendJSON(Res, Item, 201);
   finally
     Item.Free;
-    Repo.Free;
   end;
 end;
 
-procedure UpdateProject(
+class procedure TProjectController.Update(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  Repo: TProjectRepository;
   ItemId: Integer;
   Item: TJSONObject;
 begin
-  Repo := TProjectRepository.Create;
   Item := TJSONObject(GetJSON(Req.Body));
-  ItemId := StrToIntDef(Req.Params['id'], 0);
+  ItemId := ParamAsInt(Req, 'id');
   try
-    Repo.Update(ItemId, Item.Strings['name']);
-    Res
-      .ContentType('application/json')
-      .Send(Item.AsJSON);
+    Repository.Update(ItemId, Item.Strings['name']);
+    SendJSON(Res, Item);
   finally
     Item.Free;
-    Repo.Free;
   end;
 end;
 
-procedure DeleteProject(
+class procedure TProjectController.Delete(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  Repo: TProjectRepository;
   ItemId: Integer;
 begin
-  Repo := TProjectRepository.Create;
-  ItemId := StrToIntDef(Req.Params['id'], 0);
-  try
-    Repo.Delete(ItemId);
-    Res.Status(204).Send('');
-  finally
-    Repo.Free;
-  end;
+  ItemId := ParamAsInt(Req, 'id');
+  Repository.Delete(ItemId);
+  SendNoContent(Res);
 end;
 
 end.
