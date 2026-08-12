@@ -8,30 +8,30 @@ uses
   Classes,
   SysUtils,
   SQLDB,
-  fpjson,
+  project_dto,
   repository;
 
 type
   TProjectRepository = class(TRepositoryBase)
   private
-    function MapProject(const Query: TSQLQuery): TJSONObject;
+    function MapProject(const Query: TSQLQuery): TProjectDTO;
 
   public
 
-    function GetAll: TJSONArray;
+    function GetAll: TProjectDTOList;
 
     function GetById(
       const AId: Integer
-    ): TJSONObject;
+    ): TProjectDTO;
 
     function CreateProject(
       const AName: String
-    ): Integer;
+    ): TProjectDTO;
 
-    procedure Update(
+    function Update(
       const AId: Integer;
       const AName: String
-    );
+    ): TProjectDTO;
 
     procedure Delete(
       const AId: Integer
@@ -44,22 +44,22 @@ implementation
 uses
   SQLite3Conn;
 
-function TProjectRepository.MapProject(const Query: TSQLQuery): TJSONObject;
+function TProjectRepository.MapProject(const Query: TSQLQuery): TProjectDTO;
 begin
-  Result := TJSONObject.Create;
-
-  Result.Add('id', Query.FieldByName('id').AsInteger);
-  Result.Add('name', Query.FieldByName('name').AsString);
-  Result.Add('created_at', Query.FieldByName('created_at').AsString);
+  Result := TProjectDTO.Create(
+    Query.FieldByName('id').AsInteger,
+    Query.FieldByName('name').AsString,
+    Query.FieldByName('created_at').AsString
+  );
 end;
 
-function TProjectRepository.GetAll: TJSONArray;
+function TProjectRepository.GetAll: TProjectDTOList;
 var
   Conn: TSQLite3Connection;
   Query: TSQLQuery;
-  Item: TJSONObject;
+  Item: TProjectDTO;
 begin
-  Result := TJSONArray.Create;
+  Result := TProjectDTOList.Create(True);
 
   Query := CreateQuery(Conn);
 
@@ -86,7 +86,7 @@ end;
 
 function TProjectRepository.GetById(
   const AId: Integer
-): TJSONObject;
+): TProjectDTO;
 var
   Conn: TSQLite3Connection;
   Query: TSQLQuery;
@@ -116,12 +116,14 @@ end;
 
 function TProjectRepository.CreateProject(
   const AName: String
-): Integer;
+): TProjectDTO;
 var
   Conn: TSQLite3Connection;
   Query: TSQLQuery;
+  CreatedId: Integer;
 begin
-  Result := 0;
+  Result := nil;
+  CreatedId := 0;
 
   Query := CreateQuery(Conn);
 
@@ -139,7 +141,9 @@ begin
     Query.SQL.Text :=
       'select last_insert_rowid() as id';
     Query.Open;
-    Result := Query.FieldByName('id').AsInteger;
+    CreatedId := Query.FieldByName('id').AsInteger;
+
+    Result := GetById(CreatedId);
 
   finally
     if Conn.Transaction.Active then
@@ -150,14 +154,15 @@ begin
   end;
 end;
 
-procedure TProjectRepository.Update(
+function TProjectRepository.Update(
   const AId: Integer;
   const AName: String
-);
+): TProjectDTO;
 var
   Conn: TSQLite3Connection;
   Query: TSQLQuery;
 begin
+  Result := nil;
   Query := CreateQuery(Conn);
 
   try
@@ -171,6 +176,8 @@ begin
 
     Query.ExecSQL;
     CommitTransaction(Conn);
+
+    Result := GetById(AId);
 
   finally
     if Conn.Transaction.Active then

@@ -33,6 +33,7 @@ UNIT_PATHS=(
   "${ROOT_DIR}/src"
   "${ROOT_DIR}/src/bootstrap"
   "${ROOT_DIR}/src/controllers"
+  "${ROOT_DIR}/src/resources"
   "${ROOT_DIR}/src/services"
   "${ROOT_DIR}/src/repositories"
   "${ROOT_DIR}/src/database"

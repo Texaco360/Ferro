@@ -8,6 +8,8 @@ uses
   Horse,
   SysUtils,
   fpjson,
+  todo_dto,
+  todo_resource,
   controller,
   todo_repository,
   todo_service;
@@ -72,15 +74,19 @@ class procedure TTodoController.GetAll(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  Todos: TJSONArray;
+  Todos: TTodoDTOList;
+  Payload: TJSONArray;
 begin
   Todos := nil;
+  Payload := nil;
 
   try
     Todos := Service.GetAll;
-    SendJSON(Res, Todos);
+    Payload := TTodoResource.Many(Todos);
+    SendJSON(Res, Payload);
   finally
     Todos.Free;
+    Payload.Free;
   end;
 end;
 
@@ -89,15 +95,25 @@ class procedure TTodoController.GetById(
   Res : THorseResponse);
 var
   TodoId: Integer;
-  Todo: TJSONObject;
+  Todo: TTodoDTO;
+  Payload: TJSONObject;
 begin
   Todo := nil;
+  Payload := nil;
   TodoId := ParamAsInt(Req, 'id');
   try
     Todo := Service.GetById(TodoId);
-    SendJSON(Res, Todo);
+    if Todo = nil then
+    begin
+      SendNoContent(Res);
+      Exit;
+    end;
+
+    Payload := TTodoResource.One(Todo);
+    SendJSON(Res, Payload);
   finally
     Todo.Free;
+    Payload.Free;
   end;
 end;
 
@@ -105,19 +121,22 @@ class procedure TTodoController.Create(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  ReqTodo: TJSONObject;
-  ResTodo: TJSONObject;
-  Title: String;
+  ReqTodo: TTodoDTO;
+  ResTodo: TTodoDTO;
+  Payload: TJSONObject;
 begin
-  ReqTodo := TJSONObject(GetJSON(Req.Body));
+  ReqTodo := nil;
   ResTodo := nil;
+  Payload := nil;
   try
-    Title := ReqTodo.Strings['title'];
-    ResTodo := Service.CreateTodo(Title);
-    SendJSON(Res, ResTodo, 201);
+    ReqTodo := TTodoDTO.FromCreateJSON(Req.Body);
+    ResTodo := Service.CreateTodo(ReqTodo);
+    Payload := TTodoResource.One(ResTodo);
+    SendJSON(Res, Payload, 201);
   finally
     ReqTodo.Free;
     ResTodo.Free;
+    Payload.Free;
   end;
 end;
 
@@ -126,22 +145,30 @@ class procedure TTodoController.Update(
   Res : THorseResponse);
 var
   TodoId: Integer;
-  ReqTodo: TJSONObject;
-  ResTodo: TJSONObject;
-  Title: String;
-  Completed: Boolean;
+  ReqTodo: TTodoDTO;
+  ResTodo: TTodoDTO;
+  Payload: TJSONObject;
 begin
-  ReqTodo := TJSONObject(GetJSON(Req.Body));
+  ReqTodo := nil;
   ResTodo := nil;
+  Payload := nil;
   TodoId := ParamAsInt(Req, 'id');
   try
-    Title := ReqTodo.Strings['title'];
-    Completed := ReqTodo.Booleans['completed'];
-    ResTodo := Service.UpdateTodo(TodoId, Title, Completed);
-    SendJSON(Res, ResTodo);
+    ReqTodo := TTodoDTO.FromUpdateJSON(Req.Body);
+    ResTodo := Service.UpdateTodo(TodoId, ReqTodo);
+
+    if ResTodo = nil then
+    begin
+      SendNoContent(Res);
+      Exit;
+    end;
+
+    Payload := TTodoResource.One(ResTodo);
+    SendJSON(Res, Payload);
   finally
     ReqTodo.Free;
     ResTodo.Free;
+    Payload.Free;
   end;
 end;
 

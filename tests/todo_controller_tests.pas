@@ -15,6 +15,7 @@ uses
   jsonparser,
   SQLite3Conn,
   SQLDB,
+  todo_dto,
   todo_repository;
 
 type
@@ -401,41 +402,46 @@ end;
 procedure TTestTodoController.GetTodoByIdReturnsTheStoredTodo;
 var
   Repository: TTodoRepository;
-  CreatedId: Integer;
+  CreatedTodo: TTodoDTO;
   TodoJson: TJSONObject;
 begin
   Repository := TTodoRepository.Create;
+  CreatedTodo := nil;
   try
-    CreatedId := Repository.CreateTodo('Fetch me');
+    CreatedTodo := Repository.CreateTodo('Fetch me');
   finally
     Repository.Free;
   end;
 
-  TodoJson := GetJsonObject(HttpGet('/api/todos/' + IntToStr(CreatedId)));
+  TodoJson := GetJsonObject(HttpGet('/api/todos/' + IntToStr(CreatedTodo.Id)));
   try
-    AssertEquals(CreatedId, TodoJson.Integers['id']);
+    AssertEquals(CreatedTodo.Id, TodoJson.Integers['id']);
     AssertEquals('Fetch me', TodoJson.Strings['title']);
     AssertFalse(TodoJson.Booleans['completed']);
   finally
     TodoJson.Free;
+    CreatedTodo.Free;
   end;
 end;
 
 procedure TTestTodoController.UpdateTodoReturnsTheUpdatedTodo;
 var
   Repository: TTodoRepository;
-  CreatedId: Integer;
+  CreatedTodo: TTodoDTO;
+  StoredTodo: TTodoDTO;
   TodoJson: TJSONObject;
 begin
   Repository := TTodoRepository.Create;
+  CreatedTodo := nil;
+  StoredTodo := nil;
   try
-    CreatedId := Repository.CreateTodo('Original title');
+    CreatedTodo := Repository.CreateTodo('Original title');
   finally
     Repository.Free;
   end;
 
   TodoJson := GetJsonObject(HttpPutJson(
-    '/api/todos/' + IntToStr(CreatedId),
+    '/api/todos/' + IntToStr(CreatedTodo.Id),
     CreateTodoJson('Updated title', True)
   ));
   try
@@ -447,15 +453,13 @@ begin
 
   Repository := TTodoRepository.Create;
   try
-    TodoJson := Repository.GetById(CreatedId);
-    try
-      AssertNotNull(TodoJson);
-      AssertEquals('Updated title', TodoJson.Strings['title']);
-      AssertTrue(TodoJson.Booleans['completed']);
-    finally
-      TodoJson.Free;
-    end;
+    StoredTodo := Repository.GetById(CreatedTodo.Id);
+    AssertNotNull(StoredTodo);
+    AssertEquals('Updated title', StoredTodo.Title);
+    AssertTrue(StoredTodo.Completed);
   finally
+    StoredTodo.Free;
+    CreatedTodo.Free;
     Repository.Free;
   end;
 end;
@@ -463,21 +467,27 @@ end;
 procedure TTestTodoController.DeleteTodoReturnsNoContent;
 var
   Repository: TTodoRepository;
-  CreatedId: Integer;
+  CreatedTodo: TTodoDTO;
+  DeletedTodo: TTodoDTO;
 begin
   Repository := TTodoRepository.Create;
+  CreatedTodo := nil;
+  DeletedTodo := nil;
   try
-    CreatedId := Repository.CreateTodo('Remove me');
+    CreatedTodo := Repository.CreateTodo('Remove me');
   finally
     Repository.Free;
   end;
 
-  AssertEquals('', HttpDelete('/api/todos/' + IntToStr(CreatedId)));
+  AssertEquals('', HttpDelete('/api/todos/' + IntToStr(CreatedTodo.Id)));
 
   Repository := TTodoRepository.Create;
   try
-    AssertNull(Repository.GetById(CreatedId));
+    DeletedTodo := Repository.GetById(CreatedTodo.Id);
+    AssertNull(DeletedTodo);
   finally
+    DeletedTodo.Free;
+    CreatedTodo.Free;
     Repository.Free;
   end;
 end;

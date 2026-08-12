@@ -8,6 +8,8 @@ uses
   Horse,
   SysUtils,
   fpjson,
+  project_dto,
+  project_resource,
   controller,
   project_repository,
   project_service;
@@ -72,14 +74,18 @@ class procedure TProjectController.GetAll(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  Items: TJSONArray;
+  Items: TProjectDTOList;
+  Payload: TJSONArray;
 begin
   Items := nil;
+  Payload := nil;
   try
     Items := Service.GetAll;
-    SendJSON(Res, Items);
+    Payload := TProjectResource.Many(Items);
+    SendJSON(Res, Payload);
   finally
     Items.Free;
+    Payload.Free;
   end;
 end;
 
@@ -88,15 +94,25 @@ class procedure TProjectController.GetById(
   Res : THorseResponse);
 var
   ItemId: Integer;
-  Item: TJSONObject;
+  Item: TProjectDTO;
+  Payload: TJSONObject;
 begin
   Item := nil;
+  Payload := nil;
   ItemId := ParamAsInt(Req, 'id');
   try
     Item := Service.GetById(ItemId);
-    SendJSON(Res, Item);
+    if Item = nil then
+    begin
+      SendNoContent(Res);
+      Exit;
+    end;
+
+    Payload := TProjectResource.One(Item);
+    SendJSON(Res, Payload);
   finally
     Item.Free;
+    Payload.Free;
   end;
 end;
 
@@ -104,19 +120,22 @@ class procedure TProjectController.Create(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  ReqItem: TJSONObject;
-  ResItem: TJSONObject;
-  ItemName: String;
+  ReqItem: TProjectDTO;
+  ResItem: TProjectDTO;
+  Payload: TJSONObject;
 begin
-  ReqItem := TJSONObject(GetJSON(Req.Body));
+  ReqItem := nil;
   ResItem := nil;
+  Payload := nil;
   try
-    ItemName := ReqItem.Strings['name'];
-    ResItem := Service.CreateProject(ItemName);
-    SendJSON(Res, ResItem, 201);
+    ReqItem := TProjectDTO.FromCreateJSON(Req.Body);
+    ResItem := Service.CreateProject(ReqItem);
+    Payload := TProjectResource.One(ResItem);
+    SendJSON(Res, Payload, 201);
   finally
     ReqItem.Free;
     ResItem.Free;
+    Payload.Free;
   end;
 end;
 
@@ -125,20 +144,29 @@ class procedure TProjectController.Update(
   Res : THorseResponse);
 var
   ItemId: Integer;
-  ReqItem: TJSONObject;
-  ResItem: TJSONObject;
-  ItemName: String;
+  ReqItem: TProjectDTO;
+  ResItem: TProjectDTO;
+  Payload: TJSONObject;
 begin
-  ReqItem := TJSONObject(GetJSON(Req.Body));
+  ReqItem := nil;
   ResItem := nil;
+  Payload := nil;
   ItemId := ParamAsInt(Req, 'id');
   try
-    ItemName := ReqItem.Strings['name'];
-    ResItem := Service.UpdateProject(ItemId, ItemName);
-    SendJSON(Res, ResItem);
+    ReqItem := TProjectDTO.FromUpdateJSON(Req.Body);
+    ResItem := Service.UpdateProject(ItemId, ReqItem);
+    if ResItem = nil then
+    begin
+      SendNoContent(Res);
+      Exit;
+    end;
+
+    Payload := TProjectResource.One(ResItem);
+    SendJSON(Res, Payload);
   finally
     ReqItem.Free;
     ResItem.Free;
+    Payload.Free;
   end;
 end;
 

@@ -8,31 +8,31 @@ uses
   Classes,
   SysUtils,
   SQLDB,
-  fpjson,
+  todo_dto,
   repository;
 
 type
   TTodoRepository = class(TRepositoryBase)
   private
-    function MapTodo(const Query: TSQLQuery): TJSONObject;
+    function MapTodo(const Query: TSQLQuery): TTodoDTO;
 
   public
 
-    function GetAll: TJSONArray;
+    function GetAll: TTodoDTOList;
 
     function GetById(
       const AId: Integer
-    ): TJSONObject;
+    ): TTodoDTO;
 
     function CreateTodo(
       const ATitle: String
-    ): Integer;
+    ): TTodoDTO;
 
-    procedure Update(
+    function Update(
       const AId: Integer;
       const ATitle: String;
       const ACompleted: Boolean
-    );
+    ): TTodoDTO;
 
     procedure Delete(
       const AId: Integer
@@ -45,33 +45,22 @@ implementation
 uses
   SQLite3Conn;
 
-function TTodoRepository.MapTodo(const Query: TSQLQuery): TJSONObject;
+function TTodoRepository.MapTodo(const Query: TSQLQuery): TTodoDTO;
 begin
-  Result := TJSONObject.Create;
-
-  Result.Add(
-    'id',
-    Query.FieldByName('id').AsInteger
-  );
-
-  Result.Add(
-    'title',
-    Query.FieldByName('title').AsString
-  );
-
-  Result.Add(
-    'completed',
+  Result := TTodoDTO.Create(
+    Query.FieldByName('id').AsInteger,
+    Query.FieldByName('title').AsString,
     Query.FieldByName('completed').AsInteger = 1
   );
 end;
 
-function TTodoRepository.GetAll: TJSONArray;
+function TTodoRepository.GetAll: TTodoDTOList;
 var
   Conn: TSQLite3Connection;
   Query: TSQLQuery;
-  Item: TJSONObject;
+  Item: TTodoDTO;
 begin
-  Result := TJSONArray.Create;
+  Result := TTodoDTOList.Create(True);
 
   Query := CreateQuery(Conn);
 
@@ -86,7 +75,6 @@ begin
     while not Query.EOF do
     begin
       Item := MapTodo(Query);
-
       Result.Add(Item);
 
       Query.Next;
@@ -100,7 +88,7 @@ end;
 
 function TTodoRepository.GetById(
   const AId: Integer
-): TJSONObject;
+): TTodoDTO;
 var
   Conn: TSQLite3Connection;
   Query: TSQLQuery;
@@ -130,12 +118,14 @@ end;
 
 function TTodoRepository.CreateTodo(
   const ATitle: String
-): Integer;
+): TTodoDTO;
 var
   Conn: TSQLite3Connection;
   Query: TSQLQuery;
+  CreatedId: Integer;
 begin
-  Result := 0;
+  Result := nil;
+  CreatedId := 0;
 
   Query := CreateQuery(Conn);
 
@@ -157,8 +147,10 @@ begin
 
     Query.Open;
 
-    Result :=
+    CreatedId :=
       Query.FieldByName('id').AsInteger;
+
+    Result := GetById(CreatedId);
 
   finally
     if Conn.Transaction.Active then
@@ -169,15 +161,16 @@ begin
   end;
 end;
 
-procedure TTodoRepository.Update(
+function TTodoRepository.Update(
   const AId: Integer;
   const ATitle: String;
   const ACompleted: Boolean
-);
+): TTodoDTO;
 var
   Conn: TSQLite3Connection;
   Query: TSQLQuery;
 begin
+  Result := nil;
 
   Query := CreateQuery(Conn);
 
@@ -196,6 +189,8 @@ begin
 
     Query.ExecSQL;
     CommitTransaction(Conn);
+
+    Result := GetById(AId);
 
   finally
     if Conn.Transaction.Active then

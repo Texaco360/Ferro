@@ -10,7 +10,7 @@ uses
   fpcunit,
   testregistry,
   migrations,
-  fpjson,
+  todo_dto,
   todo_repository;
 
 type
@@ -76,17 +76,15 @@ end;
 procedure TTestTodoRepository.GetAllReturnsAnEmptyArray;
 var
   Repository: TTodoRepository;
-  Todos: TJSONArray;
+  Todos: TTodoDTOList;
 begin
   Repository := CreateRepository;
+  Todos := nil;
   try
     Todos := Repository.GetAll;
-    try
-      AssertEquals(0, Todos.Count);
-    finally
-      Todos.Free;
-    end;
+    AssertEquals(0, Todos.Count);
   finally
+    Todos.Free;
     Repository.Free;
   end;
 end;
@@ -94,14 +92,18 @@ end;
 procedure TTestTodoRepository.CreateTodoPersistsATodo;
 var
   Repository: TTodoRepository;
-  CreatedId: Integer;
+  Todo: TTodoDTO;
 begin
   Repository := CreateRepository;
+  Todo := nil;
   try
-    CreatedId := Repository.CreateTodo('Write tests');
-
-    AssertTrue(CreatedId > 0);
+    Todo := Repository.CreateTodo('Write tests');
+    AssertNotNull(Todo);
+    AssertTrue(Todo.Id > 0);
+    AssertEquals('Write tests', Todo.Title);
+    AssertFalse(Todo.Completed);
   finally
+    Todo.Free;
     Repository.Free;
   end;
 end;
@@ -109,23 +111,23 @@ end;
 procedure TTestTodoRepository.GetByIdReturnsTheInsertedTodo;
 var
   Repository: TTodoRepository;
-  CreatedId: Integer;
-  Todo: TJSONObject;
+  CreatedTodo: TTodoDTO;
+  Todo: TTodoDTO;
 begin
   Repository := CreateRepository;
+  CreatedTodo := nil;
+  Todo := nil;
   try
-    CreatedId := Repository.CreateTodo('Write tests');
+    CreatedTodo := Repository.CreateTodo('Write tests');
 
-    Todo := Repository.GetById(CreatedId);
-    try
-      AssertNotNull(Todo);
-      AssertEquals(CreatedId, Todo.Integers['id']);
-      AssertEquals('Write tests', Todo.Strings['title']);
-      AssertFalse(Todo.Booleans['completed']);
-    finally
-      Todo.Free;
-    end;
+    Todo := Repository.GetById(CreatedTodo.Id);
+    AssertNotNull(Todo);
+    AssertEquals(CreatedTodo.Id, Todo.Id);
+    AssertEquals('Write tests', Todo.Title);
+    AssertFalse(Todo.Completed);
   finally
+    CreatedTodo.Free;
+    Todo.Free;
     Repository.Free;
   end;
 end;
@@ -133,23 +135,28 @@ end;
 procedure TTestTodoRepository.UpdateChangesTheStoredRow;
 var
   Repository: TTodoRepository;
-  CreatedId: Integer;
-  Todo: TJSONObject;
+  CreatedTodo: TTodoDTO;
+  Todo: TTodoDTO;
+  UpdatedTodo: TTodoDTO;
 begin
   Repository := CreateRepository;
+  CreatedTodo := nil;
+  Todo := nil;
+  UpdatedTodo := nil;
   try
-    CreatedId := Repository.CreateTodo('Write tests');
-    Repository.Update(CreatedId, 'Write more tests', True);
+    CreatedTodo := Repository.CreateTodo('Write tests');
+    UpdatedTodo := Repository.Update(CreatedTodo.Id, 'Write more tests', True);
+    UpdatedTodo.Free;
+    UpdatedTodo := nil;
 
-    Todo := Repository.GetById(CreatedId);
-    try
-      AssertNotNull(Todo);
-      AssertEquals('Write more tests', Todo.Strings['title']);
-      AssertTrue(Todo.Booleans['completed']);
-    finally
-      Todo.Free;
-    end;
+    Todo := Repository.GetById(CreatedTodo.Id);
+    AssertNotNull(Todo);
+    AssertEquals('Write more tests', Todo.Title);
+    AssertTrue(Todo.Completed);
   finally
+    UpdatedTodo.Free;
+    CreatedTodo.Free;
+    Todo.Free;
     Repository.Free;
   end;
 end;
@@ -157,15 +164,21 @@ end;
 procedure TTestTodoRepository.DeleteRemovesTheStoredRow;
 var
   Repository: TTodoRepository;
-  CreatedId: Integer;
+  CreatedTodo: TTodoDTO;
+  Todo: TTodoDTO;
 begin
   Repository := CreateRepository;
+  CreatedTodo := nil;
+  Todo := nil;
   try
-    CreatedId := Repository.CreateTodo('Write tests');
-    Repository.Delete(CreatedId);
+    CreatedTodo := Repository.CreateTodo('Write tests');
+    Repository.Delete(CreatedTodo.Id);
 
-    AssertNull(Repository.GetById(CreatedId));
+    Todo := Repository.GetById(CreatedTodo.Id);
+    AssertNull(Todo);
   finally
+    CreatedTodo.Free;
+    Todo.Free;
     Repository.Free;
   end;
 end;

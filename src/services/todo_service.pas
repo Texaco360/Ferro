@@ -6,7 +6,7 @@ interface
 
 uses
 	SysUtils,
-	fpjson,
+	todo_dto,
 	todo_repository;
 
 type
@@ -20,21 +20,20 @@ type
 	public
 		constructor Create(ARepository: TTodoRepository);
 
-		function GetAll: TJSONArray;
+		function GetAll: TTodoDTOList;
 
 		function GetById(
 			const AId: Integer
-		): TJSONObject;
+		): TTodoDTO;
 
 		function CreateTodo(
-			const ATitle: String
-		): TJSONObject;
+			const AInput: TTodoDTO
+		): TTodoDTO;
 
 		function UpdateTodo(
 			const AId: Integer;
-			const ATitle: String;
-			const ACompleted: Boolean
-		): TJSONObject;
+			const AInput: TTodoDTO
+		): TTodoDTO;
 
 		procedure DeleteTodo(
 			const AId: Integer
@@ -62,14 +61,14 @@ begin
 		raise ETodoValidationError.Create('Title must be <= 200 chars');
 end;
 
-function TTodoService.GetAll: TJSONArray;
+function TTodoService.GetAll: TTodoDTOList;
 begin
 	Result := FRepository.GetAll;
 end;
 
 function TTodoService.GetById(
 	const AId: Integer
-): TJSONObject;
+): TTodoDTO;
 begin
 	if AId <= 0 then
 		raise ETodoValidationError.Create('Invalid todo id');
@@ -78,30 +77,25 @@ begin
 end;
 
 function TTodoService.CreateTodo(
-	const ATitle: String
-): TJSONObject;
-var
-	TodoId: Integer;
+	const AInput: TTodoDTO
+): TTodoDTO;
 begin
-	ValidateTitle(ATitle);
+	ValidateTitle(AInput.Title);
 
-	TodoId := FRepository.CreateTodo(Trim(ATitle));
-	Result := FRepository.GetById(TodoId);
+	Result := FRepository.CreateTodo(Trim(AInput.Title));
 end;
 
 function TTodoService.UpdateTodo(
 	const AId: Integer;
-	const ATitle: String;
-	const ACompleted: Boolean
-): TJSONObject;
+	const AInput: TTodoDTO
+): TTodoDTO;
 begin
 	if AId <= 0 then
 		raise ETodoValidationError.Create('Invalid todo id');
 
-	ValidateTitle(ATitle);
+	ValidateTitle(AInput.Title);
 
-	FRepository.Update(AId, Trim(ATitle), ACompleted);
-	Result := FRepository.GetById(AId);
+	Result := FRepository.Update(AId, Trim(AInput.Title), AInput.Completed);
 end;
 
 procedure TTodoService.DeleteTodo(

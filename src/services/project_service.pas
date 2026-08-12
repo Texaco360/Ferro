@@ -6,7 +6,7 @@ interface
 
 uses
   SysUtils,
-  fpjson,
+  project_dto,
   project_repository;
 
 type
@@ -20,20 +20,20 @@ type
   public
     constructor Create(ARepository: TProjectRepository);
 
-    function GetAll: TJSONArray;
+    function GetAll: TProjectDTOList;
 
     function GetById(
       const AId: Integer
-    ): TJSONObject;
+    ): TProjectDTO;
 
     function CreateProject(
-      const AName: String
-    ): TJSONObject;
+      const AInput: TProjectDTO
+    ): TProjectDTO;
 
     function UpdateProject(
       const AId: Integer;
-      const AName: String
-    ): TJSONObject;
+      const AInput: TProjectDTO
+    ): TProjectDTO;
 
     procedure DeleteProject(
       const AId: Integer
@@ -61,14 +61,14 @@ begin
     raise EProjectValidationError.Create('Name must be <= 200 chars');
 end;
 
-function TProjectService.GetAll: TJSONArray;
+function TProjectService.GetAll: TProjectDTOList;
 begin
   Result := FRepository.GetAll;
 end;
 
 function TProjectService.GetById(
   const AId: Integer
-): TJSONObject;
+): TProjectDTO;
 begin
   if AId <= 0 then
     raise EProjectValidationError.Create('Invalid project id');
@@ -77,29 +77,25 @@ begin
 end;
 
 function TProjectService.CreateProject(
-  const AName: String
-): TJSONObject;
-var
-  ItemId: Integer;
+  const AInput: TProjectDTO
+): TProjectDTO;
 begin
-  ValidateName(AName);
+  ValidateName(AInput.Name);
 
-  ItemId := FRepository.CreateProject(Trim(AName));
-  Result := FRepository.GetById(ItemId);
+  Result := FRepository.CreateProject(Trim(AInput.Name));
 end;
 
 function TProjectService.UpdateProject(
   const AId: Integer;
-  const AName: String
-): TJSONObject;
+  const AInput: TProjectDTO
+): TProjectDTO;
 begin
   if AId <= 0 then
     raise EProjectValidationError.Create('Invalid project id');
 
-  ValidateName(AName);
+  ValidateName(AInput.Name);
 
-  FRepository.Update(AId, Trim(AName));
-  Result := FRepository.GetById(AId);
+  Result := FRepository.Update(AId, Trim(AInput.Name));
 end;
 
 procedure TProjectService.DeleteProject(
