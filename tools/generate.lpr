@@ -545,7 +545,7 @@ begin
   Writeln('  Patched: src/database/migrations.pas');
 end;
 
-procedure PatchBootstrap;
+procedure PatchAppRoutes;
 var
   BootstrapPath: String;
   Content: String;
@@ -554,13 +554,13 @@ var
   F: TextFile;
 begin
   LB := LineEnding;
-  BootstrapPath := SrcFile('src/bootstrap/server_bootstrap.pas');
+  BootstrapPath := SrcFile('src/routes/app_routes.pas');
 
   Content := ReadFileContent(BootstrapPath);
 
   if Pos('; // $USES_END', Content) = 0 then
   begin
-    Writeln('ERROR: uses sentinel not found in server_bootstrap.pas. Expected: ; // $USES_END');
+    Writeln('ERROR: uses sentinel not found in app_routes.pas. Expected: ; // $USES_END');
     Halt(1);
   end;
 
@@ -573,7 +573,7 @@ begin
 
   if Pos('  // $ROUTES_END', Content) = 0 then
   begin
-    Writeln('ERROR: routes sentinel not found in server_bootstrap.pas. Expected:   // $ROUTES_END');
+    Writeln('ERROR: routes sentinel not found in app_routes.pas. Expected:   // $ROUTES_END');
     Halt(1);
   end;
 
@@ -600,7 +600,7 @@ begin
     CloseFile(F);
   end;
 
-  Writeln('  Patched: src/bootstrap/server_bootstrap.pas');
+  Writeln('  Patched: src/routes/app_routes.pas');
 end;
 
 begin
@@ -634,7 +634,7 @@ begin
   Writeln('  Created: src/controllers/' + ModelLower + '_controller.pas');
 
   PatchMigrations;
-  PatchBootstrap;
+  PatchAppRoutes;
 
   Writeln('');
   Writeln('Generated model "' + ModelPascal + '" successfully.');
