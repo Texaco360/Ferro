@@ -79,6 +79,28 @@ begin
   {$ENDIF}
 end;
 
+procedure SetServerPortEnv(const APort: Word);
+begin
+  {$IFDEF WINDOWS}
+  if not Windows.SetEnvironmentVariable(PChar('PORT'), PChar(IntToStr(APort))) then
+    raise Exception.Create('Unable to set PORT environment variable.');
+  {$ELSE}
+  if setenv(PAnsiChar(AnsiString('PORT')), PAnsiChar(AnsiString(IntToStr(APort))), 1) <> 0 then
+    raise Exception.Create('Unable to set PORT environment variable.');
+  {$ENDIF}
+end;
+
+procedure SetServerHostEnv(const AHost: string);
+begin
+  {$IFDEF WINDOWS}
+  if not Windows.SetEnvironmentVariable(PChar('HOST'), PChar(AHost)) then
+    raise Exception.Create('Unable to set HOST environment variable.');
+  {$ELSE}
+  if setenv(PAnsiChar(AnsiString('HOST')), PAnsiChar(AnsiString(AHost)), 1) <> 0 then
+    raise Exception.Create('Unable to set HOST environment variable.');
+  {$ENDIF}
+end;
+
 procedure TTestHTTPClient.SetRequestBodyStream(AStream: TStream);
 begin
   RequestBody := AStream;
@@ -179,41 +201,30 @@ end;
 
 function TTestTodoController.FindAvailablePort(const AStartPort, AMaxAttempts: Integer): Word;
 var
-  Sock: LongInt;
-  Addr: TInetSockAddr;
-  AddrLen: TSockLen;
-  Opt: LongInt;
+  Candidate: Integer;
+  Attempt: Integer;
+  StartPort: Integer;
 begin
-  Sock := fpSocket(AF_INET, SOCK_STREAM, 0);
-  if Sock < 0 then
-    raise Exception.Create('Unable to create a TCP socket for test port reservation.');
+  StartPort := AStartPort;
+  if StartPort < 10000 then
+    StartPort := 10000;
 
-  try
-    Opt := 1;
-    fpSetSockOpt(Sock, SOL_SOCKET, SO_REUSEADDR, @Opt, SizeOf(Opt));
+  Candidate := StartPort;
+  for Attempt := 0 to AMaxAttempts - 1 do
+  begin
+    if Candidate > 30000 then
+      Candidate := 10000;
 
-    FillByte(Addr, SizeOf(Addr), 0);
-    Addr.sin_family := AF_INET;
-    Addr.sin_port := 0;
-    Addr.sin_addr.s_addr := htonl(INADDR_ANY);
+    if IsPortAvailable(Candidate) then
+      Exit(Candidate);
 
-    if fpBind(Sock, @Addr, SizeOf(Addr)) <> 0 then
-      raise Exception.Create('Unable to reserve an ephemeral TCP port for controller tests.');
-
-    AddrLen := SizeOf(Addr);
-    FillByte(Addr, SizeOf(Addr), 0);
-
-    if fpGetSockName(Sock, @Addr, @AddrLen) <> 0 then
-      raise Exception.Create('Unable to read back the reserved controller test port.');
-
-    Result := ntohs(Addr.sin_port);
-  finally
-    {$IFDEF UNIX}
-    fpClose(Sock);
-    {$ELSE}
-    CloseSocket(Sock);
-    {$ENDIF}
+    Inc(Candidate);
   end;
+
+  raise Exception.CreateFmt(
+    'No free controller test port found after %d attempts starting at %d.',
+    [AMaxAttempts, StartPort]
+  );
 end;
 
 function TTestTodoController.BaseUrl: string;
@@ -225,7 +236,8 @@ procedure TTestTodoController.StartServer;
 var
   ServerBinary: string;
 begin
-  FPort := 54321;
+  // Horse on Win32 is more reliable on low ports than in the ephemeral >49k range.
+  FPort := FindAvailablePort(12000, 15000);
 
   ServerBinary := ExpandFileName(
     IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
@@ -234,8 +246,9 @@ begin
 
   FServerProcess := TProcess.Create(nil);
   FServerProcess.Options := [poNewProcessGroup];
-  FServerProcess.Environment.Add('PORT=' + IntToStr(FPort));
-  FServerProcess.Environment.Add('DB_PATH=' + FDatabasePath);
+  SetServerPortEnv(FPort);
+  SetServerHostEnv('127.0.0.1');
+  SetDbPathEnv(FDatabasePath);
 
   {$IFDEF WINDOWS}
   if not FileExists(ServerBinary + '.exe') then

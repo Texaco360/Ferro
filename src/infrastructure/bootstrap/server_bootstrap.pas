@@ -82,16 +82,19 @@ procedure StartServer;
 var
   RequestedPort: Integer;
   Port: Integer;
+  Host: string;
 begin
   RequestedPort := StrToIntDef(GetEnvironmentVariable('PORT'), 9000);
-  Port := FindAvailablePort(RequestedPort, 500);
-
-  if Port <> RequestedPort then
-    Writeln(Format('Port %d is busy, using %d.', [RequestedPort, Port]));
+  Port := RequestedPort;
+  if Port < 1 then
+    Port := 9000;
+  Host := Trim(GetEnvironmentVariable('HOST'));
+  if Host = '' then
+    Host := '0.0.0.0';
 
   RunMigrations;
   app_routes.RegisterRoutes;
-  THorse.Listen(Port);
+  THorse.Listen(Port, Host);
 end;
 
 end.
