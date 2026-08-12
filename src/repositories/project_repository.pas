@@ -7,11 +7,15 @@ interface
 uses
   Classes,
   SysUtils,
+  SQLDB,
   fpjson,
   repository;
 
 type
   TProjectRepository = class(TRepositoryBase)
+  private
+    function MapProject(const Query: TSQLQuery): TJSONObject;
+
   public
 
     function GetAll: TJSONArray;
@@ -38,8 +42,16 @@ type
 implementation
 
 uses
-  SQLDB,
   SQLite3Conn;
+
+function TProjectRepository.MapProject(const Query: TSQLQuery): TJSONObject;
+begin
+  Result := TJSONObject.Create;
+
+  Result.Add('id', Query.FieldByName('id').AsInteger);
+  Result.Add('name', Query.FieldByName('name').AsString);
+  Result.Add('created_at', Query.FieldByName('created_at').AsString);
+end;
 
 function TProjectRepository.GetAll: TJSONArray;
 var
@@ -61,10 +73,7 @@ begin
 
     while not Query.EOF do
     begin
-      Item := TJSONObject.Create;
-      Item.Add('id', Query.FieldByName('id').AsInteger);
-      Item.Add('name', Query.FieldByName('name').AsString);
-      Item.Add('created_at', Query.FieldByName('created_at').AsString);
+      Item := MapProject(Query);
       Result.Add(Item);
       Query.Next;
     end;
@@ -92,17 +101,12 @@ begin
       'from projects ' +
       'where id = :id';
 
-    Query.ParamByName('id').AsInteger := AId;
+    SetParamInt(Query, 'id', AId);
 
     Query.Open;
 
     if not Query.EOF then
-    begin
-      Result := TJSONObject.Create;
-      Result.Add('id', Query.FieldByName('id').AsInteger);
-      Result.Add('name', Query.FieldByName('name').AsString);
-      Result.Add('created_at', Query.FieldByName('created_at').AsString);
-    end;
+      Result := MapProject(Query);
 
   finally
     Query.Free;
@@ -127,7 +131,7 @@ begin
     Query.SQL.Text :=
       'insert into projects (name) values (:name)';
 
-    Query.ParamByName('name').AsString := AName;
+    SetParamString(Query, 'name', AName);
 
     Query.ExecSQL;
     CommitTransaction(Conn);
@@ -162,8 +166,8 @@ begin
     Query.SQL.Text :=
       'update projects set name = :name where id = :id';
 
-    Query.ParamByName('name').AsString := AName;
-    Query.ParamByName('id').AsInteger := AId;
+    SetParamString(Query, 'name', AName);
+    SetParamInt(Query, 'id', AId);
 
     Query.ExecSQL;
     CommitTransaction(Conn);
@@ -189,7 +193,7 @@ begin
   try
     BeginTransaction(Conn);
     Query.SQL.Text := 'delete from projects where id = :id';
-    Query.ParamByName('id').AsInteger := AId;
+    SetParamInt(Query, 'id', AId);
     Query.ExecSQL;
     CommitTransaction(Conn);
 

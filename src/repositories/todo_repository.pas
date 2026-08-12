@@ -7,11 +7,15 @@ interface
 uses
   Classes,
   SysUtils,
+  SQLDB,
   fpjson,
   repository;
 
 type
   TTodoRepository = class(TRepositoryBase)
+  private
+    function MapTodo(const Query: TSQLQuery): TJSONObject;
+
   public
 
     function GetAll: TJSONArray;
@@ -39,8 +43,27 @@ type
 implementation
 
 uses
-  SQLDB,
   SQLite3Conn;
+
+function TTodoRepository.MapTodo(const Query: TSQLQuery): TJSONObject;
+begin
+  Result := TJSONObject.Create;
+
+  Result.Add(
+    'id',
+    Query.FieldByName('id').AsInteger
+  );
+
+  Result.Add(
+    'title',
+    Query.FieldByName('title').AsString
+  );
+
+  Result.Add(
+    'completed',
+    Query.FieldByName('completed').AsInteger = 1
+  );
+end;
 
 function TTodoRepository.GetAll: TJSONArray;
 var
@@ -62,23 +85,7 @@ begin
 
     while not Query.EOF do
     begin
-
-      Item := TJSONObject.Create;
-
-      Item.Add(
-        'id',
-        Query.FieldByName('id').AsInteger
-      );
-
-      Item.Add(
-        'title',
-        Query.FieldByName('title').AsString
-      );
-
-      Item.Add(
-        'completed',
-        Query.FieldByName('completed').AsInteger = 1
-      );
+      Item := MapTodo(Query);
 
       Result.Add(Item);
 
@@ -108,31 +115,12 @@ begin
       'from todos ' +
       'where id = :id';
 
-    Query.ParamByName('id').AsInteger :=
-      AId;
+    SetParamInt(Query, 'id', AId);
 
     Query.Open;
 
     if not Query.EOF then
-    begin
-
-      Result := TJSONObject.Create;
-
-      Result.Add(
-        'id',
-        Query.FieldByName('id').AsInteger
-      );
-
-      Result.Add(
-        'title',
-        Query.FieldByName('title').AsString
-      );
-
-      Result.Add(
-        'completed',
-        Query.FieldByName('completed').AsInteger = 1
-      );
-    end;
+      Result := MapTodo(Query);
 
   finally
     Query.Free;
@@ -159,9 +147,7 @@ begin
       '(title,completed) ' +
       'values (:title,0)';
 
-    Query.ParamByName(
-      'title'
-    ).AsString := ATitle;
+    SetParamString(Query, 'title', ATitle);
 
     Query.ExecSQL;
     CommitTransaction(Conn);
@@ -204,14 +190,9 @@ begin
       '    completed=:completed ' +
       'where id=:id';
 
-    Query.ParamByName('title').AsString :=
-      ATitle;
-
-    Query.ParamByName('completed').AsInteger :=
-      Ord(ACompleted);
-
-    Query.ParamByName('id').AsInteger :=
-      AId;
+    SetParamString(Query, 'title', ATitle);
+    SetParamInt(Query, 'completed', Ord(ACompleted));
+    SetParamInt(Query, 'id', AId);
 
     Query.ExecSQL;
     CommitTransaction(Conn);
@@ -242,8 +223,7 @@ begin
       'delete from todos ' +
       'where id=:id';
 
-    Query.ParamByName('id').AsInteger :=
-      AId;
+    SetParamInt(Query, 'id', AId);
 
     Query.ExecSQL;
     CommitTransaction(Conn);

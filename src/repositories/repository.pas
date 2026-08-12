@@ -15,6 +15,16 @@ type
     procedure BeginTransaction(const Conn: TSQLite3Connection);
     procedure CommitTransaction(const Conn: TSQLite3Connection);
     procedure RollbackTransaction(const Conn: TSQLite3Connection);
+    procedure SetParamInt(
+      const Query: TSQLQuery;
+      const AName: String;
+      const AValue: Integer
+    );
+    procedure SetParamString(
+      const Query: TSQLQuery;
+      const AName: String;
+      const AValue: String
+    );
   end;
 
 implementation
@@ -47,6 +57,24 @@ procedure TRepositoryBase.RollbackTransaction(const Conn: TSQLite3Connection);
 begin
   if Conn.Transaction.Active then
     Conn.Transaction.Rollback;
+end;
+
+procedure TRepositoryBase.SetParamInt(
+  const Query: TSQLQuery;
+  const AName: String;
+  const AValue: Integer
+);
+begin
+  Query.ParamByName(AName).AsInteger := AValue;
+end;
+
+procedure TRepositoryBase.SetParamString(
+  const Query: TSQLQuery;
+  const AName: String;
+  const AValue: String
+);
+begin
+  Query.ParamByName(AName).AsString := AValue;
 end;
 
 end.
