@@ -52,6 +52,7 @@ UNIT_PATHS=(
   "${ROOT_DIR}/src/repositories"
   "${ROOT_DIR}/src/database"
   "${ROOT_DIR}/src/dto"
+  "${ROOT_DIR}/src/routes"
 )
 
 # Add all dependency source directories under modules/*/src.
