@@ -32,11 +32,31 @@ type
 
 implementation
 
+uses
+  {$IFDEF WINDOWS}
+  Windows;
+  {$ELSE}
+  Unix;
+  {$ENDIF}
+
+{$IFDEF UNIX}
 function setenv(name: PAnsiChar; value: PAnsiChar; overwrite: LongInt): LongInt; cdecl; external 'c' name 'setenv';
+{$ENDIF}
+
+procedure SetDbPathEnv(const APath: string);
+begin
+  {$IFDEF WINDOWS}
+  if not Windows.SetEnvironmentVariable(PChar('DB_PATH'), PChar(APath)) then
+    raise Exception.Create('Unable to set DB_PATH environment variable.');
+  {$ELSE}
+  if setenv(PAnsiChar(AnsiString('DB_PATH')), PAnsiChar(AnsiString(APath)), 1) <> 0 then
+    raise Exception.Create('Unable to set DB_PATH environment variable.');
+  {$ENDIF}
+end;
 
 function TTestTodoRepository.ResolveDatabasePath: string;
 begin
-  Result := Trim(GetEnvironmentVariable('DB_PATH'));
+  Result := Trim(SysUtils.GetEnvironmentVariable('DB_PATH'));
   if Result <> '' then
     Exit;
 
@@ -51,14 +71,10 @@ begin
   if FDatabasePath = '' then
     FDatabasePath := ResolveDatabasePath;
 
-  setenv(
-    PAnsiChar(AnsiString('DB_PATH')),
-    PAnsiChar(AnsiString(FDatabasePath)),
-    1
-  );
+  SetDbPathEnv(FDatabasePath);
 
   if FileExists(FDatabasePath) then
-    DeleteFile(FDatabasePath);
+    SysUtils.DeleteFile(FDatabasePath);
 
   RunMigrations;
 end;

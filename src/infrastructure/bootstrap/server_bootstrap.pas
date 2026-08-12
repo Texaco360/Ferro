@@ -10,7 +10,9 @@ procedure StartServer;
 implementation
 
 uses
+  {$IFDEF UNIX}
   BaseUnix,
+  {$ENDIF}
   Sockets,
   SysUtils,
   Horse,
@@ -42,7 +44,11 @@ begin
 
     Result := fpBind(Sock, @Addr, SizeOf(Addr)) = 0;
   finally
+    {$IFDEF UNIX}
     fpClose(Sock);
+    {$ELSE}
+    CloseSocket(Sock);
+    {$ENDIF}
   end;
 end;
 

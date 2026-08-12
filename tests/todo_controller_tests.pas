@@ -59,10 +59,25 @@ type
 implementation
 
 uses
-  BaseUnix,
+  {$IFDEF WINDOWS}
+  Windows,
+  {$ENDIF}
   Sockets;
 
+{$IFDEF UNIX}
 function setenv(name: PAnsiChar; value: PAnsiChar; overwrite: LongInt): LongInt; cdecl; external 'c' name 'setenv';
+{$ENDIF}
+
+procedure SetDbPathEnv(const APath: string);
+begin
+  {$IFDEF WINDOWS}
+  if not Windows.SetEnvironmentVariable(PChar('DB_PATH'), PChar(APath)) then
+    raise Exception.Create('Unable to set DB_PATH environment variable.');
+  {$ELSE}
+  if setenv(PAnsiChar(AnsiString('DB_PATH')), PAnsiChar(AnsiString(APath)), 1) <> 0 then
+    raise Exception.Create('Unable to set DB_PATH environment variable.');
+  {$ENDIF}
+end;
 
 procedure TTestHTTPClient.SetRequestBodyStream(AStream: TStream);
 begin
@@ -71,7 +86,7 @@ end;
 
 function TTestTodoController.ResolveDatabasePath: string;
 begin
-  Result := Trim(GetEnvironmentVariable('DB_PATH'));
+  Result := Trim(SysUtils.GetEnvironmentVariable('DB_PATH'));
   if Result <> '' then
     Exit;
 
@@ -86,14 +101,10 @@ begin
   if FDatabasePath = '' then
     FDatabasePath := ResolveDatabasePath;
 
-  setenv(
-    PAnsiChar(AnsiString('DB_PATH')),
-    PAnsiChar(AnsiString(FDatabasePath)),
-    1
-  );
+  SetDbPathEnv(FDatabasePath);
 
   if FileExists(FDatabasePath) then
-    DeleteFile(FDatabasePath);
+    SysUtils.DeleteFile(FDatabasePath);
 
   ExecuteSchema;
 end;
@@ -158,7 +169,11 @@ begin
 
     Result := fpBind(Sock, @Addr, SizeOf(Addr)) = 0;
   finally
+    {$IFDEF UNIX}
     fpClose(Sock);
+    {$ELSE}
+    CloseSocket(Sock);
+    {$ENDIF}
   end;
 end;
 
@@ -193,7 +208,11 @@ begin
 
     Result := ntohs(Addr.sin_port);
   finally
+    {$IFDEF UNIX}
     fpClose(Sock);
+    {$ELSE}
+    CloseSocket(Sock);
+    {$ENDIF}
   end;
 end;
 
@@ -214,11 +233,20 @@ begin
   );
 
   FServerProcess := TProcess.Create(nil);
-  FServerProcess.Executable := '/usr/bin/env';
-  FServerProcess.Parameters.Add('PORT=' + IntToStr(FPort));
-  FServerProcess.Parameters.Add('DB_PATH=' + FDatabasePath);
-  FServerProcess.Parameters.Add(ServerBinary);
   FServerProcess.Options := [poNewProcessGroup];
+  FServerProcess.Environment.Add('PORT=' + IntToStr(FPort));
+  FServerProcess.Environment.Add('DB_PATH=' + FDatabasePath);
+
+  {$IFDEF WINDOWS}
+  if not FileExists(ServerBinary + '.exe') then
+    raise Exception.CreateFmt('Server binary not found at %s.exe', [ServerBinary]);
+
+  FServerProcess.Executable := ServerBinary + '.exe';
+  {$ELSE}
+  FServerProcess.Executable := '/usr/bin/env';
+  FServerProcess.Parameters.Add(ServerBinary);
+  {$ENDIF}
+
   FServerProcess.Execute;
 
   WaitForServerReady;
