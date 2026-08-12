@@ -46,14 +46,20 @@ mkdir -p "${BIN_DIR}" "${UNITS_DIR}"
 
 UNIT_PATHS=(
   "${ROOT_DIR}/src"
-  "${ROOT_DIR}/src/bootstrap"
-  "${ROOT_DIR}/src/controllers"
-  "${ROOT_DIR}/src/resources"
-  "${ROOT_DIR}/src/services"
-  "${ROOT_DIR}/src/repositories"
   "${ROOT_DIR}/src/database"
-  "${ROOT_DIR}/src/dto"
-  "${ROOT_DIR}/src/routes"
+  "${ROOT_DIR}/src/domain/shared"
+  "${ROOT_DIR}/src/domain/todo"
+  "${ROOT_DIR}/src/domain/project"
+  "${ROOT_DIR}/src/application/todo"
+  "${ROOT_DIR}/src/application/project"
+  "${ROOT_DIR}/src/infrastructure/bootstrap"
+  "${ROOT_DIR}/src/infrastructure/shared"
+  "${ROOT_DIR}/src/infrastructure/todo"
+  "${ROOT_DIR}/src/infrastructure/project"
+  "${ROOT_DIR}/src/presentation/shared"
+  "${ROOT_DIR}/src/presentation/todo"
+  "${ROOT_DIR}/src/presentation/project"
+  "${ROOT_DIR}/src/presentation/routes"
 )
 
 # Add all dependency source directories under modules/*/src.
