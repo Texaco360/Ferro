@@ -59,6 +59,7 @@ Location: `src/resources/*_resource.pas`
 Responsibilities:
 - Convert DTO objects to API JSON shape
 - Keep response formatting consistent across endpoints
+- Compose nested JSON responses, including parent-child collections such as project with embedded todos
 
 Resources should be the only place where API response JSON is assembled.
 
@@ -87,6 +88,8 @@ Model DTO classes (for example `TTodoDTO`, `TProjectDTO`) inherit from `TBaseDTO
 - `FromUpdateJSON`
 
 In practice, the request DTO passed into a service does not need to be identical to the DTO returned by that service. The service can return a richer, thinner, or otherwise transformed DTO that matches the response contract better than the input contract.
+
+DTOs can also be nested in response models when a resource needs to expose aggregates. For example, a project details response can include a `todos` collection, even if the project create/update request DTO only contains project fields.
 
 ## Ownership Rules
 
