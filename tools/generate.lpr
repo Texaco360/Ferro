@@ -71,22 +71,155 @@ end;
 
 procedure CheckGuard;
 var
-  DtoPath, RepoPath, CtrlPath: String;
+  DtoPath, RepoPath, ServicePath, CtrlPath: String;
   AnyExists: Boolean;
 begin
   DtoPath  := SrcFile('src/dto/'          + ModelLower + '_dto.pas');
   RepoPath := SrcFile('src/repositories/' + ModelLower + '_repository.pas');
+  ServicePath := SrcFile('src/services/'  + ModelLower + '_service.pas');
   CtrlPath := SrcFile('src/controllers/'  + ModelLower + '_controller.pas');
 
-  AnyExists := FileExists(DtoPath) or FileExists(RepoPath) or FileExists(CtrlPath);
+  AnyExists := FileExists(DtoPath) or FileExists(RepoPath) or FileExists(ServicePath) or FileExists(CtrlPath);
 
   if AnyExists then
   begin
     Writeln('ERROR: Model "' + ModelPascal + '" already exists. Aborting.');
     if FileExists(DtoPath)  then Writeln('  Exists: src/dto/'          + ModelLower + '_dto.pas');
     if FileExists(RepoPath) then Writeln('  Exists: src/repositories/' + ModelLower + '_repository.pas');
+    if FileExists(ServicePath) then Writeln('  Exists: src/services/'   + ModelLower + '_service.pas');
     if FileExists(CtrlPath) then Writeln('  Exists: src/controllers/'  + ModelLower + '_controller.pas');
     Halt(1);
+  end;
+end;
+
+function BuildServiceContent: String;
+var
+  L: TStringList;
+  MP, ML: String;
+begin
+  MP := ModelPascal;
+  ML := ModelLower;
+
+  L := TStringList.Create;
+  try
+    L.Add('unit ' + ML + '_service;');
+    L.Add('');
+    L.Add('{$mode objfpc}{$H+}');
+    L.Add('');
+    L.Add('interface');
+    L.Add('');
+    L.Add('uses');
+    L.Add('  SysUtils,');
+    L.Add('  fpjson,');
+    L.Add('  ' + ML + '_repository;');
+    L.Add('');
+    L.Add('type');
+    L.Add('  E' + MP + 'ValidationError = class(Exception);');
+    L.Add('');
+    L.Add('  T' + MP + 'Service = class');
+    L.Add('  private');
+    L.Add('    FRepository: T' + MP + 'Repository;');
+    L.Add('    procedure ValidateName(const AName: String);');
+    L.Add('');
+    L.Add('  public');
+    L.Add('    constructor Create(ARepository: T' + MP + 'Repository);');
+    L.Add('');
+    L.Add('    function GetAll: TJSONArray;');
+    L.Add('');
+    L.Add('    function GetById(');
+    L.Add('      const AId: Integer');
+    L.Add('    ): TJSONObject;');
+    L.Add('');
+    L.Add('    function Create' + MP + '(');
+    L.Add('      const AName: String');
+    L.Add('    ): TJSONObject;');
+    L.Add('');
+    L.Add('    function Update' + MP + '(');
+    L.Add('      const AId: Integer;');
+    L.Add('      const AName: String');
+    L.Add('    ): TJSONObject;');
+    L.Add('');
+    L.Add('    procedure Delete' + MP + '(');
+    L.Add('      const AId: Integer');
+    L.Add('    );');
+    L.Add('  end;');
+    L.Add('');
+    L.Add('implementation');
+    L.Add('');
+    L.Add('constructor T' + MP + 'Service.Create(ARepository: T' + MP + 'Repository);');
+    L.Add('begin');
+    L.Add('  inherited Create;');
+    L.Add('  FRepository := ARepository;');
+    L.Add('end;');
+    L.Add('');
+    L.Add('procedure T' + MP + 'Service.ValidateName(const AName: String);');
+    L.Add('var');
+    L.Add('  TrimmedName: String;');
+    L.Add('begin');
+    L.Add('  TrimmedName := Trim(AName);');
+    L.Add('');
+    L.Add('  if TrimmedName = '''' then');
+    L.Add('    raise E' + MP + 'ValidationError.Create(''Name is required'');');
+    L.Add('');
+    L.Add('  if Length(TrimmedName) > 200 then');
+    L.Add('    raise E' + MP + 'ValidationError.Create(''Name must be <= 200 chars'');');
+    L.Add('end;');
+    L.Add('');
+    L.Add('function T' + MP + 'Service.GetAll: TJSONArray;');
+    L.Add('begin');
+    L.Add('  Result := FRepository.GetAll;');
+    L.Add('end;');
+    L.Add('');
+    L.Add('function T' + MP + 'Service.GetById(');
+    L.Add('  const AId: Integer');
+    L.Add('): TJSONObject;');
+    L.Add('begin');
+    L.Add('  if AId <= 0 then');
+    L.Add('    raise E' + MP + 'ValidationError.Create(''Invalid ' + ML + ' id'');');
+    L.Add('');
+    L.Add('  Result := FRepository.GetById(AId);');
+    L.Add('end;');
+    L.Add('');
+    L.Add('function T' + MP + 'Service.Create' + MP + '(');
+    L.Add('  const AName: String');
+    L.Add('): TJSONObject;');
+    L.Add('var');
+    L.Add('  ItemId: Integer;');
+    L.Add('begin');
+    L.Add('  ValidateName(AName);');
+    L.Add('');
+    L.Add('  ItemId := FRepository.Create' + MP + '(Trim(AName));');
+    L.Add('  Result := FRepository.GetById(ItemId);');
+    L.Add('end;');
+    L.Add('');
+    L.Add('function T' + MP + 'Service.Update' + MP + '(');
+    L.Add('  const AId: Integer;');
+    L.Add('  const AName: String');
+    L.Add('): TJSONObject;');
+    L.Add('begin');
+    L.Add('  if AId <= 0 then');
+    L.Add('    raise E' + MP + 'ValidationError.Create(''Invalid ' + ML + ' id'');');
+    L.Add('');
+    L.Add('  ValidateName(AName);');
+    L.Add('');
+    L.Add('  FRepository.Update(AId, Trim(AName));');
+    L.Add('  Result := FRepository.GetById(AId);');
+    L.Add('end;');
+    L.Add('');
+    L.Add('procedure T' + MP + 'Service.Delete' + MP + '(');
+    L.Add('  const AId: Integer');
+    L.Add(');');
+    L.Add('begin');
+    L.Add('  if AId <= 0 then');
+    L.Add('    raise E' + MP + 'ValidationError.Create(''Invalid ' + ML + ' id'');');
+    L.Add('');
+    L.Add('  FRepository.Delete(AId);');
+    L.Add('end;');
+    L.Add('');
+    L.Add('end.');
+    Result := L.Text;
+  finally
+    L.Free;
   end;
 end;
 
@@ -365,13 +498,16 @@ begin
     L.Add('  SysUtils,');
     L.Add('  fpjson,');
     L.Add('  controller,');
-    L.Add('  ' + ML + '_repository;');
+    L.Add('  ' + ML + '_repository,');
+    L.Add('  ' + ML + '_service;');
     L.Add('');
     L.Add('type');
     L.Add('  T' + MP + 'Controller = class(TBaseController)');
     L.Add('  private');
     L.Add('    class var FRepository: T' + MP + 'Repository;');
+    L.Add('    class var FService: T' + MP + 'Service;');
     L.Add('    class function Repository: T' + MP + 'Repository; static;');
+    L.Add('    class function Service: T' + MP + 'Service; static;');
     L.Add('');
     L.Add('  public');
     L.Add('    class destructor Destroy;');
@@ -407,8 +543,17 @@ begin
     L.Add('  Result := FRepository;');
     L.Add('end;');
     L.Add('');
+    L.Add('class function T' + MP + 'Controller.Service: T' + MP + 'Service;');
+    L.Add('begin');
+    L.Add('  if FService = nil then');
+    L.Add('    FService := T' + MP + 'Service.Create(Repository);');
+    L.Add('');
+    L.Add('  Result := FService;');
+    L.Add('end;');
+    L.Add('');
     L.Add('class destructor T' + MP + 'Controller.Destroy;');
     L.Add('begin');
+    L.Add('  FreeAndNil(FService);');
     L.Add('  FreeAndNil(FRepository);');
     L.Add('end;');
     L.Add('');
@@ -420,7 +565,7 @@ begin
     L.Add('begin');
     L.Add('  Items := nil;');
     L.Add('  try');
-    L.Add('    Items := Repository.GetAll;');
+    L.Add('    Items := Service.GetAll;');
     L.Add('    SendJSON(Res, Items);');
     L.Add('  finally');
     L.Add('    Items.Free;');
@@ -437,7 +582,7 @@ begin
     L.Add('  Item := nil;');
     L.Add('  ItemId := ParamAsInt(Req, ''id'');');
     L.Add('  try');
-    L.Add('    Item := Repository.GetById(ItemId);');
+    L.Add('    Item := Service.GetById(ItemId);');
     L.Add('    SendJSON(Res, Item);');
     L.Add('  finally');
     L.Add('    Item.Free;');
@@ -449,12 +594,13 @@ begin
     L.Add('  Res : THorseResponse);');
     L.Add('var');
     L.Add('  Item: TJSONObject;');
-    L.Add('  ItemId: Integer;');
+    L.Add('  ItemName: String;');
     L.Add('begin');
     L.Add('  Item := TJSONObject(GetJSON(Req.Body));');
     L.Add('  try');
-    L.Add('    ItemId := Repository.Create' + MP + '(Item.Strings[''name'']);');
-    L.Add('    Item.Add(''id'', ItemId);');
+    L.Add('    ItemName := Item.Strings[''name''];');
+    L.Add('    Item.Free;');
+    L.Add('    Item := Service.Create' + MP + '(ItemName);');
     L.Add('    SendJSON(Res, Item, 201);');
     L.Add('  finally');
     L.Add('    Item.Free;');
@@ -467,11 +613,14 @@ begin
     L.Add('var');
     L.Add('  ItemId: Integer;');
     L.Add('  Item: TJSONObject;');
+    L.Add('  ItemName: String;');
     L.Add('begin');
     L.Add('  Item := TJSONObject(GetJSON(Req.Body));');
     L.Add('  ItemId := ParamAsInt(Req, ''id'');');
     L.Add('  try');
-    L.Add('    Repository.Update(ItemId, Item.Strings[''name'']);');
+    L.Add('    ItemName := Item.Strings[''name''];');
+    L.Add('    Item.Free;');
+    L.Add('    Item := Service.Update' + MP + '(ItemId, ItemName);');
     L.Add('    SendJSON(Res, Item);');
     L.Add('  finally');
     L.Add('    Item.Free;');
@@ -485,7 +634,7 @@ begin
     L.Add('  ItemId: Integer;');
     L.Add('begin');
     L.Add('  ItemId := ParamAsInt(Req, ''id'');');
-    L.Add('  Repository.Delete(ItemId);');
+    L.Add('  Service.Delete' + MP + '(ItemId);');
     L.Add('  SendNoContent(Res);');
     L.Add('end;');
     L.Add('');
@@ -626,6 +775,12 @@ begin
     BuildRepositoryContent
   );
   Writeln('  Created: src/repositories/' + ModelLower + '_repository.pas');
+
+  WriteFileContent(
+    SrcFile('src/services/' + ModelLower + '_service.pas'),
+    BuildServiceContent
+  );
+  Writeln('  Created: src/services/' + ModelLower + '_service.pas');
 
   WriteFileContent(
     SrcFile('src/controllers/' + ModelLower + '_controller.pas'),

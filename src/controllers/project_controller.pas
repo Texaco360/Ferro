@@ -9,13 +9,16 @@ uses
   SysUtils,
   fpjson,
   controller,
-  project_repository;
+  project_repository,
+  project_service;
 
 type
   TProjectController = class(TBaseController)
   private
     class var FRepository: TProjectRepository;
+    class var FService: TProjectService;
     class function Repository: TProjectRepository; static;
+    class function Service: TProjectService; static;
 
   public
     class destructor Destroy;
@@ -51,8 +54,17 @@ begin
   Result := FRepository;
 end;
 
+class function TProjectController.Service: TProjectService;
+begin
+  if FService = nil then
+    FService := TProjectService.Create(Repository);
+
+  Result := FService;
+end;
+
 class destructor TProjectController.Destroy;
 begin
+  FreeAndNil(FService);
   FreeAndNil(FRepository);
 end;
 
@@ -64,7 +76,7 @@ var
 begin
   Items := nil;
   try
-    Items := Repository.GetAll;
+    Items := Service.GetAll;
     SendJSON(Res, Items);
   finally
     Items.Free;
@@ -81,7 +93,7 @@ begin
   Item := nil;
   ItemId := ParamAsInt(Req, 'id');
   try
-    Item := Repository.GetById(ItemId);
+    Item := Service.GetById(ItemId);
     SendJSON(Res, Item);
   finally
     Item.Free;
@@ -92,16 +104,19 @@ class procedure TProjectController.Create(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  Item: TJSONObject;
-  ItemId: Integer;
+  ReqItem: TJSONObject;
+  ResItem: TJSONObject;
+  ItemName: String;
 begin
-  Item := TJSONObject(GetJSON(Req.Body));
+  ReqItem := TJSONObject(GetJSON(Req.Body));
+  ResItem := nil;
   try
-    ItemId := Repository.CreateProject(Item.Strings['name']);
-    Item.Add('id', ItemId);
-    SendJSON(Res, Item, 201);
+    ItemName := ReqItem.Strings['name'];
+    ResItem := Service.CreateProject(ItemName);
+    SendJSON(Res, ResItem, 201);
   finally
-    Item.Free;
+    ReqItem.Free;
+    ResItem.Free;
   end;
 end;
 
@@ -110,15 +125,20 @@ class procedure TProjectController.Update(
   Res : THorseResponse);
 var
   ItemId: Integer;
-  Item: TJSONObject;
+  ReqItem: TJSONObject;
+  ResItem: TJSONObject;
+  ItemName: String;
 begin
-  Item := TJSONObject(GetJSON(Req.Body));
+  ReqItem := TJSONObject(GetJSON(Req.Body));
+  ResItem := nil;
   ItemId := ParamAsInt(Req, 'id');
   try
-    Repository.Update(ItemId, Item.Strings['name']);
-    SendJSON(Res, Item);
+    ItemName := ReqItem.Strings['name'];
+    ResItem := Service.UpdateProject(ItemId, ItemName);
+    SendJSON(Res, ResItem);
   finally
-    Item.Free;
+    ReqItem.Free;
+    ResItem.Free;
   end;
 end;
 
@@ -129,7 +149,7 @@ var
   ItemId: Integer;
 begin
   ItemId := ParamAsInt(Req, 'id');
-  Repository.Delete(ItemId);
+  Service.DeleteProject(ItemId);
   SendNoContent(Res);
 end;
 

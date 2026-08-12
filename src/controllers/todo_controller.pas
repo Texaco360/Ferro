@@ -9,13 +9,16 @@ uses
   SysUtils,
   fpjson,
   controller,
-  todo_repository;
+  todo_repository,
+  todo_service;
 
 type
   TTodoController = class(TBaseController)
   private
     class var FRepository: TTodoRepository;
+    class var FService: TTodoService;
     class function Repository: TTodoRepository; static;
+    class function Service: TTodoService; static;
 
   public
     class destructor Destroy;
@@ -51,8 +54,17 @@ begin
   Result := FRepository;
 end;
 
+class function TTodoController.Service: TTodoService;
+begin
+  if FService = nil then
+    FService := TTodoService.Create(Repository);
+
+  Result := FService;
+end;
+
 class destructor TTodoController.Destroy;
 begin
+  FreeAndNil(FService);
   FreeAndNil(FRepository);
 end;
 
@@ -65,7 +77,7 @@ begin
   Todos := nil;
 
   try
-    Todos := Repository.GetAll;
+    Todos := Service.GetAll;
     SendJSON(Res, Todos);
   finally
     Todos.Free;
@@ -82,7 +94,7 @@ begin
   Todo := nil;
   TodoId := ParamAsInt(Req, 'id');
   try
-    Todo := Repository.GetById(TodoId);
+    Todo := Service.GetById(TodoId);
     SendJSON(Res, Todo);
   finally
     Todo.Free;
@@ -93,16 +105,19 @@ class procedure TTodoController.Create(
   Req : THorseRequest;
   Res : THorseResponse);
 var
-  Todo: TJSONObject;
-  TodoId: Integer;
+  ReqTodo: TJSONObject;
+  ResTodo: TJSONObject;
+  Title: String;
 begin
-  Todo := TJSONObject(GetJSON(Req.Body));
+  ReqTodo := TJSONObject(GetJSON(Req.Body));
+  ResTodo := nil;
   try
-    TodoId := Repository.CreateTodo(Todo.Strings['title']);
-    Todo.Add('id', TodoId);
-    SendJSON(Res, Todo, 201);
+    Title := ReqTodo.Strings['title'];
+    ResTodo := Service.CreateTodo(Title);
+    SendJSON(Res, ResTodo, 201);
   finally
-    Todo.Free;
+    ReqTodo.Free;
+    ResTodo.Free;
   end;
 end;
 
@@ -111,15 +126,22 @@ class procedure TTodoController.Update(
   Res : THorseResponse);
 var
   TodoId: Integer;
-  Todo: TJSONObject;
+  ReqTodo: TJSONObject;
+  ResTodo: TJSONObject;
+  Title: String;
+  Completed: Boolean;
 begin
-  Todo := TJSONObject(GetJSON(Req.Body));
+  ReqTodo := TJSONObject(GetJSON(Req.Body));
+  ResTodo := nil;
   TodoId := ParamAsInt(Req, 'id');
   try
-    Repository.Update(TodoId, Todo.Strings['title'], Todo.Booleans['completed']);
-    SendJSON(Res, Todo);
+    Title := ReqTodo.Strings['title'];
+    Completed := ReqTodo.Booleans['completed'];
+    ResTodo := Service.UpdateTodo(TodoId, Title, Completed);
+    SendJSON(Res, ResTodo);
   finally
-    Todo.Free;
+    ReqTodo.Free;
+    ResTodo.Free;
   end;
 end;
 
@@ -130,7 +152,7 @@ var
   TodoId: Integer;
 begin
   TodoId := ParamAsInt(Req, 'id');
-  Repository.Delete(TodoId);
+  Service.DeleteTodo(TodoId);
   SendNoContent(Res);
 end;
 
