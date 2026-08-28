@@ -75,7 +75,7 @@ FPC_ARGS=(
 )
 
 if [[ "${DEBUG_MODE}" == "1" ]]; then
-  FPC_ARGS+=("-gl" "-O-")
+  FPC_ARGS+=("-gl" "-O-" "-gs" "-gp" "-gw3" "-godwarfcpp")
 fi
 
 if [[ -n "${EXTRA_FPC_ARGS:-}" ]]; then
